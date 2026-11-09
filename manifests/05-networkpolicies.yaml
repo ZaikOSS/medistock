@@ -1,0 +1,126 @@
+# Default deny: aucune communication autorisée par defaut
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: medistock
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress", "Egress"]
+---
+# DNS necessaire pour tous les pods (sinon plus rien ne resout de nom)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns-egress
+  namespace: medistock
+spec:
+  podSelector: {}
+  policyTypes: ["Egress"]
+  egress:
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+---
+# frontend -> backend (egress cote frontend)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-frontend-egress-to-backend
+  namespace: medistock
+spec:
+  podSelector:
+    matchLabels:
+      app: medi-frontend
+  policyTypes: ["Egress"]
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: medi-backend
+      ports:
+        - protocol: TCP
+          port: 8080
+---
+# frontend -> backend (ingress cote backend)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-backend-ingress-from-frontend
+  namespace: medistock
+spec:
+  podSelector:
+    matchLabels:
+      app: medi-backend
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: medi-frontend
+      ports:
+        - protocol: TCP
+          port: 8080
+---
+# backend -> db (egress cote backend)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-backend-egress-to-db
+  namespace: medistock
+spec:
+  podSelector:
+    matchLabels:
+      app: medi-backend
+  policyTypes: ["Egress"]
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: medi-db
+      ports:
+        - protocol: TCP
+          port: 5432
+---
+# backend -> db (ingress cote db) : SEUL le backend peut parler a la DB
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-db-ingress-from-backend
+  namespace: medistock
+spec:
+  podSelector:
+    matchLabels:
+      app: medi-db
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: medi-backend
+      ports:
+        - protocol: TCP
+          port: 5432
+---
+# Exterieur -> frontend (NodePort 30080) : seul point d'entree du namespace
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-frontend-ingress
+  namespace: medistock
+spec:
+  podSelector:
+    matchLabels:
+      app: medi-frontend
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+      ports:
+        - protocol: TCP
+          port: 8080

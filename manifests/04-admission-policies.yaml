@@ -1,0 +1,60 @@
+# Bloque tout pod utilisant hostPath dans le namespace medistock
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: medistock-no-hostpath
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["pods"]
+  validations:
+    - expression: "!has(object.spec.volumes) || !object.spec.volumes.exists(v, has(v.hostPath))"
+      message: "hostPath volumes are not allowed in namespace medistock"
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: medistock-no-hostpath-binding
+spec:
+  policyName: medistock-no-hostpath
+  validationActions: ["Deny"]
+  matchResources:
+    namespaceSelector:
+      matchLabels:
+        kubernetes.io/metadata.name: medistock
+---
+# N'autorise que certains types de volumes (whitelist)
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: medistock-allowed-volume-types
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["pods"]
+  validations:
+    - expression: >-
+        !has(object.spec.volumes) || object.spec.volumes.all(v,
+          has(v.persistentVolumeClaim) || has(v.configMap) || has(v.secret) ||
+          has(v.emptyDir) || has(v.projected) || has(v.downwardAPI))
+      message: "Only persistentVolumeClaim, configMap, secret, emptyDir, projected, downwardAPI volumes are allowed in namespace medistock"
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: medistock-allowed-volume-types-binding
+spec:
+  policyName: medistock-allowed-volume-types
+  validationActions: ["Deny"]
+  matchResources:
+    namespaceSelector:
+      matchLabels:
+        kubernetes.io/metadata.name: medistock

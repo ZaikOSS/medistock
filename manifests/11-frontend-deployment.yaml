@@ -1,0 +1,35 @@
+# NOTE: image placeholder (nginx-unprivileged) - idem backend
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: medi-frontend
+  namespace: medistock
+  labels:
+    app: medi-frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: medi-frontend
+  template:
+    metadata:
+      labels:
+        app: medi-frontend
+    spec:
+      serviceAccountName: medi-frontend-sa
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101
+        runAsGroup: 101
+        fsGroup: 101
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: frontend
+          image: nginxinc/nginx-unprivileged:1.25-alpine
+          ports:
+            - containerPort: 8080
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]

@@ -1,0 +1,13 @@
+# PVC separe, uniquement pour demontrer le chiffrement pendant la presentation
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: demo-encrypted-pvc
+  namespace: medistock
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: longhorn-crypto
+  resources:
+    requests:
+      storage: 1Gi

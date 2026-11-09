@@ -1,0 +1,51 @@
+# NOTE: image placeholder (nginx-unprivileged) pour se concentrer sur la
+# securite du stockage/reseau plutot que sur le developpement applicatif.
+# A remplacer par une vraie API si besoin, la logique securite ne change pas.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: medi-backend
+  namespace: medistock
+  labels:
+    app: medi-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: medi-backend
+  template:
+    metadata:
+      labels:
+        app: medi-backend
+    spec:
+      serviceAccountName: medi-backend-sa
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101
+        runAsGroup: 101
+        fsGroup: 101
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: backend
+          image: nginxinc/nginx-unprivileged:1.25-alpine
+          ports:
+            - containerPort: 8080
+          env:
+            - name: DB_HOST
+              value: "medi-db"
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: medi-db-credentials
+                  key: POSTGRES_PASSWORD
+          volumeMounts:
+            - name: backend-cache
+              mountPath: /tmp/cache
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+      volumes:
+        - name: backend-cache
+          emptyDir: {}
